@@ -3,13 +3,12 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"path/filepath"
-	"sort"
-	"strings"
-
 	"go/ast"
 	"go/token"
 	"io"
+	"path/filepath"
+	"sort"
+	"strings"
 	"text/template"
 
 	"github.com/pkg/errors"
@@ -97,38 +96,41 @@ type TemplateInputInterface struct {
 
 // Options of the NewGenerator constructor
 type Options struct {
-	//InterfaceName is a name of interface type
+	// InterfaceName is a name of interface type
 	InterfaceName string
 
-	//Imports from the file with interface definition
+	// IgnoreUnexported skip generation of unexported methods instead of return an error
+	IgnoreUnexported bool
+
+	// Imports from the file with interface definition
 	Imports []string
 
-	//SourcePackage is an import path or a relative path of the package that contains the source interface
+	// SourcePackage is an import path or a relative path of the package that contains the source interface
 	SourcePackage string
 
-	//SourcePackageAlias is an import selector defauls is source package name
+	// SourcePackageAlias is an import selector defauls is source package name
 	SourcePackageAlias string
 
-	//OutputFile name which is used to detect destination package name and also to fix imports in the resulting source
+	// OutputFile name which is used to detect destination package name and also to fix imports in the resulting source
 	OutputFile string
 
-	//HeaderTemplate is used to generate package clause and comment over the generated source
+	// HeaderTemplate is used to generate package clause and comment over the generated source
 	HeaderTemplate string
 
-	//BodyTemplate generates import section, decorator constructor and methods
+	// BodyTemplate generates import section, decorator constructor and methods
 	BodyTemplate string
 
-	//Vars additional vars that are passed to the templates from the command line
+	// Vars additional vars that are passed to the templates from the command line
 	Vars map[string]interface{}
 
-	//HeaderVars header specific variables
+	// HeaderVars header specific variables
 	HeaderVars map[string]interface{}
 
-	//Funcs is a map of helper functions that can be used within a template
+	// Funcs is a map of helper functions that can be used within a template
 	Funcs template.FuncMap
 
-	//LocalPrefix is a comma-separated string of import path prefixes, which, if set, instructs Process to sort the import
-	//paths with the given prefixes into another group after 3rd-party packages.
+	// LocalPrefix is a comma-separated string of import path prefixes, which, if set, instructs Process to sort the import
+	// paths with the given prefixes into another group after 3rd-party packages.
 	LocalPrefix string
 }
 
@@ -231,7 +233,7 @@ func NewGenerator(options Options) (*Generator, error) {
 	}
 
 	for _, m := range output.methods {
-		if srcPackageAST.Name != "" && []rune(m.Name)[0] == []rune(strings.ToLower(m.Name))[0] {
+		if !options.IgnoreUnexported && srcPackageAST.Name != "" && []rune(m.Name)[0] == []rune(strings.ToLower(m.Name))[0] {
 			return nil, errors.Wrap(errUnexportedMethod, m.Name)
 		}
 	}
@@ -270,7 +272,7 @@ func makeImports(imports []*ast.ImportSpec) []string {
 func loadDestinationPackage(path string) (*packages.Package, error) {
 	dstPackage, err := pkg.Load(path)
 	if err != nil {
-		//using directory name as a package name
+		// using directory name as a package name
 		dstPackage, err = makePackage(path)
 	}
 

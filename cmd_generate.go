@@ -13,22 +13,24 @@ import (
 	"unicode"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/pkg/errors"
+
 	"github.com/hexdigest/gowrap/generator"
 	"github.com/hexdigest/gowrap/pkg"
-	"github.com/pkg/errors"
 )
 
 // GenerateCommand implements Command interface
 type GenerateCommand struct {
 	BaseCommand
 
-	interfaceName string
-	template      string
-	outputFile    string
-	sourcePkg     string
-	noGenerate    bool
-	vars          vars
-	localPrefix   string
+	interfaceName    string
+	template         string
+	outputFile       string
+	sourcePkg        string
+	noGenerate       bool
+	vars             vars
+	localPrefix      string
+	ignoreUnexported bool
 
 	loader   templateLoader
 	filepath fs
@@ -46,7 +48,7 @@ func NewGenerateCommand(l remoteTemplateLoader) *GenerateCommand {
 		},
 	}
 
-	//this flagset loads flags values to the command fields
+	// this flagset loads flags values to the command fields
 	fs := &flag.FlagSet{}
 	fs.BoolVar(&gc.noGenerate, "g", false, "don't put //go:generate instruction to the generated code")
 	fs.StringVar(&gc.interfaceName, "i", "", `the source interface name, i.e. "Reader"`)
@@ -56,6 +58,7 @@ func NewGenerateCommand(l remoteTemplateLoader) *GenerateCommand {
 		"run `gowrap template list` for details")
 	fs.Var(&gc.vars, "v", "a key-value pair to parametrize the template,\narguments without an equal sign are treated as a bool values,\ni.e. -v foo=bar -v disableChecks")
 	fs.StringVar(&gc.localPrefix, "l", "", "put imports beginning with this string after 3rd-party packages; comma-separated list")
+	fs.BoolVar(&gc.ignoreUnexported, "u", false, "ignore unexported methods")
 
 	gc.BaseCommand = BaseCommand{
 		Short: "generate decorators",
@@ -123,10 +126,11 @@ func (gc *GenerateCommand) checkFlags() error {
 
 func (gc *GenerateCommand) getOptions() (*generator.Options, error) {
 	options := generator.Options{
-		InterfaceName:  gc.interfaceName,
-		OutputFile:     gc.outputFile,
-		Funcs:          helperFuncs,
-		HeaderTemplate: headerTemplate,
+		InterfaceName:    gc.interfaceName,
+		IgnoreUnexported: gc.ignoreUnexported,
+		OutputFile:       gc.outputFile,
+		Funcs:            helperFuncs,
+		HeaderTemplate:   headerTemplate,
 		HeaderVars: map[string]interface{}{
 			"DisableGoGenerate": gc.noGenerate,
 			"OutputFileName":    filepath.Base(gc.outputFile),
